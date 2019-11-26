@@ -108,6 +108,11 @@ var flHTTPMetrics = flag.Bool("http-metrics", envBool("GIT_SYNC_HTTP_METRICS", t
 var flHTTPprof = flag.Bool("http-pprof", envBool("GIT_SYNC_HTTP_PPROF", false),
 	"enable the pprof debug endpoints on git-sync's HTTP endpoint")
 
+var flProcName = flag.String("process", envString("GIT_SYNC_PROCESS", ""),
+	"process name to send signal on changes. Default is \"\" which disables signalling")
+var flProcSignal = flag.Int("signal", envInt("GIT_SYNC_SIGNAL", 1),
+	"signal number to send to matched processes.  Default is 1 (SIGHUP)")
+
 var log = glogr.New()
 
 // Total pull/error, summary on pull duration
@@ -332,6 +337,8 @@ func main() {
 			continue
 		} else if changed && webhook != nil {
 			webhook.Send(hash)
+		} else if changed && *flProcName != "" {
+			go SignalProcs(*flProcName, *flProcSignal)
 		}
 		syncDuration.WithLabelValues("success").Observe(time.Since(start).Seconds())
 		syncCount.WithLabelValues("success").Inc()
